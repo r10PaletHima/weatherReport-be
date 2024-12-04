@@ -58,36 +58,35 @@ router.get("/weather", auth, async (req, res) => {
 
 // Fetch search logs
 router.get("/logs", auth, async (req, res) => {
-  const userId = req.user.id;
-
   try {
-    // Fetch user info
-    const [userInfo] = await pool.execute(
-      "SELECT id, username, first_name, last_name, email, phone_number FROM users WHERE id = ?",
-      [userId]
+    // Fetch all logs with user information
+    const [logs] = await pool.execute(
+      `SELECT 
+         logs.id as log_id, 
+         logs.query as log_query, 
+         logs.timestamp as log_timestamp, 
+         logs.latitude, 
+         logs.longitude,
+         users.username as user_username,
+         users.first_name as user_first_name,
+         users.last_name as user_last_name,
+         users.email as user_email
+       FROM logs
+       JOIN users ON logs.user_id = users.id`
     );
 
-    // If no user is found, send a 404 error
-    if (userInfo.length === 0) {
-      return res.status(404).json({ message: "User not found" });
+    // If no logs are found, return an empty array
+    if (logs.length === 0) {
+      return res.status(404).json({ message: "No logs found" });
     }
 
-    // Fetch logs with location information
-    const [logs] = await pool.execute(
-      `SELECT logs.id as log_id, logs.query as log_query, logs.timestamp as log_timestamp, logs.latitude, logs.longitude
-       FROM logs
-       WHERE logs.user_id = ?`,
-      [userId]
-    );
-
-    // Return both user info and logs in the response
+    // Return the logs in the response
     res.json({
-      user: userInfo[0], // Send user info
-      logs, // Send the logs related to this user
+      logs, // All logs with user information
     });
   } catch (err) {
     res.status(500).json({
-      message: "Error fetching logs and user information",
+      message: "Error fetching logs",
       error: err.message,
     });
   }
